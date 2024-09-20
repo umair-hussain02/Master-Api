@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import createHttpError from "http-errors";
 import userModel from "./userModel";
+import bcrypt from "bcrypt";
 
 const userController = async (
     req: Request,
@@ -22,7 +23,8 @@ const userController = async (
         );
         return next(error);
     }
-    //        Process
+    //        Password Hash
+    const hashedPassword = await bcrypt.hash(password, 10);
     //        Response
 
     res.json({ message: "User Registered" });
