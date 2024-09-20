@@ -4,8 +4,9 @@ import userModel from "./userModel";
 import bcrypt from "bcrypt";
 import { sign } from "jsonwebtoken";
 import { config } from "../config/config";
+import { User } from "./userTypes";
 
-const userController = async (
+const createController = async (
     req: Request,
     res: Response,
     next: NextFunction,
@@ -17,31 +18,48 @@ const userController = async (
         return next(error);
     }
     //        Database Call
-    const user = await userModel.findOne({ email });
-    if (user) {
-        const error = createHttpError(
-            400,
-            "User Already Exists with this Email!",
-        );
-        return next(error);
+    try {
+        const user = await userModel.findOne({ email });
+        if (user) {
+            const error = createHttpError(
+                400,
+                "User Already Exists with this Email!",
+            );
+            return next(error);
+        }
+    } catch (err) {
+        return next(createHttpError(500, "Error In Getting User!"));
     }
     //        Password Hash
     const hashedPassword = await bcrypt.hash(password, 10);
 
     //        Store to DataBase
-    const newUser = await userModel.create({
-        name,
-        email,
-        password: hashedPassword,
-    });
-    //        Token Generation JWT
-    const token = sign({ sub: newUser._id }, config.jwtSecret as string, {
-        expiresIn: "7d",
-    });
+    let newUser: User;
+    try {
+        newUser = await userModel.create({
+            name,
+            email,
+            password: hashedPassword,
+        });
+    } catch (err) {
+        return next(createHttpError(500, "Error while creating New User!"));
+    }
+    try {
+        //        Token Generation JWT
+        const token = sign({ sub: newUser._id }, config.jwtSecret as string, {
+            expiresIn: "7d",
+        });
 
-    //        Response
+        //        Response
 
-    res.json({ AccessToken: token });
+        res.status(201).json({ AccessToken: token });
+    } catch (err) {
+        return next(createHttpError(500, "Error While Signing jwt token"));
+    }
 };
 
-export { userController };
+const loginController = (req: Request, res: Response, next: NextFunction) => {
+    res.json({ Message: "Login Successfully!" });
+};
+
+export { createController, loginController };
