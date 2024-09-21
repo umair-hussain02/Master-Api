@@ -58,8 +58,47 @@ const createController = async (
     }
 };
 
-const loginController = (req: Request, res: Response, next: NextFunction) => {
-    res.json({ Message: "Login Successfully!" });
+const loginController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) => {
+    //     User Input Validations
+    const { email, password } = req.body;
+    if (!email || !password) {
+        return next(createHttpError(400, "All fields are required!"));
+    }
+    //    Fetching UserData
+    let user;
+    try {
+        user = await userModel.findOne({ email });
+        if (!user) {
+            return next(
+                createHttpError(404, "User not found! Please create account!"),
+            );
+        }
+    } catch (err) {
+        return next(createHttpError(400, "Error in finding User"));
+    }
+
+    //     User Validation
+
+    const userExists = await bcrypt.compare(password, user.password);
+    if (!userExists) {
+        return next(createHttpError(400, "Email or Password Incorrect!"));
+    }
+    try {
+        //        Token Generation JWT
+        const token = sign({ sub: user._id }, config.jwtSecret as string, {
+            expiresIn: "7d",
+        });
+
+        //        Response
+
+        res.status(200).json({ AccessToken: token });
+    } catch (err) {
+        return next(createHttpError(500, "Error While Signing jwt token"));
+    }
 };
 
 export { createController, loginController };
